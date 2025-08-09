@@ -96,12 +96,12 @@ def main():
     if not np.isfinite(p0) or p0 <= 0:
         raise ValueError("Invalid baseline price derived from CSV.")
 
-    #    Baseline quantity q0: prefer predicted_quantity else quantity
+    #    Baseline quantity q: prefer predicted_quantity else quantity
     qty_col = "predicted_quantity" if "predicted_quantity" in df.columns else "quantity"
     if qty_col not in df.columns:
         raise ValueError("CSV must include 'quantity' or 'predicted_quantity'.")
-    q0 = float(pd.to_numeric(df[qty_col], errors="coerce").dropna().mean())
-    if not np.isfinite(q0) or q0 <= 0:
+    q = float(pd.to_numeric(df[qty_col], errors="coerce").dropna().mean())
+    if not np.isfinite(q) or q <= 0:
         raise ValueError("Invalid baseline quantity derived from CSV.")
 
     #    Elasticity magnitude E from price_elasticity
@@ -127,7 +127,7 @@ def main():
         raise ValueError("Invalid per-unit cost derived from CSV.")
 
     # 3) Solve per row using row-specific baselines and parameters
-    #    We derive row-level p0, q0, E, r, c0 from that row; if r/c0 missing, use 0.
+    #    We derive row-level p0, q, E, r, c0 from that row; if r/c0 missing, use 0.
     results = []
     price_series = pd.to_numeric(df["price"], errors="coerce")
     qty_series = (
@@ -157,7 +157,7 @@ def main():
             continue
 
         try:
-            sol = _solve_row_with_gurobi(p0=p0_i, q0=q0_i, E=E_i, r=r_i, c0=c0_i)
+            sol = _solve_row_with_gurobi(p0=p0_i, q=q0_i, E=E_i, r=r_i, c0=c0_i)
             results.append({
                 "optimal_price": sol["optimal_price"],
                 "optimal_quantity": sol["optimal_quantity"],
