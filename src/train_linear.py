@@ -249,6 +249,38 @@ def main():
     print(f"Saved model to {model_out}")
     print(f"Saved metrics report to {report_out}")
 
+    print("====================test======================")
+    # Example input data structure
+    single_input = {
+        "product_type": "Diagnostic Kit",
+        "customer_type": "Pharmaceutical Company",
+        "day_of_week": "Sunday",
+        "month": "May",
+        "price": 189.39,
+        "competitor_price": 195.37,
+        "price_gap": 0,
+        "promotion_flag": 114706.97,
+        "marketing_spend": -0.23347217569720005,
+        "economic_index": 0.10490381056766582,
+        "seasonality_index": 0.9358974358974359,
+        "trend_index": 6
+    }
+
+
+    # OR load from JSON file
+    # with open(input_data_path, "r") as f:
+    #     single_input = json.load(f)
+
+    # Convert to DataFrame
+    input_df = pd.DataFrame([single_input])
+
+    # === 3. Predict ===
+    predicted_quantity = pipeline.predict(input_df)[0]
+
+    # === 4. Output result ===
+    print(f"Predicted quantity: {predicted_quantity:.2f}")
+
+
 
 if __name__ == "__main__":
     main()
