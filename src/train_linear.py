@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
@@ -50,14 +50,14 @@ def build_pipeline(categorical_features, numeric_features) -> Pipeline:
         transformers=[
             (
                 "categorical",
-                OneHotEncoder(handle_unknown="ignore"),
+                OneHotEncoder(handle_unknown="ignore", drop="first"),
                 categorical_features,
             ),
             ("numeric", StandardScaler(), numeric_features),
         ]
     )
 
-    model = LinearRegression()
+    model = Ridge(alpha=1.0, random_state=0)
 
     pipeline = Pipeline(
         steps=[
@@ -73,6 +73,57 @@ def evaluate(y_true: np.ndarray, y_pred: np.ndarray):
     mae = float(mean_absolute_error(y_true, y_pred))
     r2 = float(r2_score(y_true, y_pred))
     return {"rmse": rmse, "mae": mae, "r2": r2}
+
+
+def extract_feature_names(
+    preprocessor: ColumnTransformer, categorical_features, numeric_features
+):
+    ohe: OneHotEncoder = preprocessor.named_transformers_["categorical"]
+    ohe_names = list(ohe.get_feature_names_out(categorical_features))
+    num_names = list(numeric_features)
+    return ohe_names + num_names, ohe_names, num_names
+
+
+def coefficients_in_original_units(pipeline: Pipeline, ohe_names, num_names):
+    pre: ColumnTransformer = pipeline.named_steps["preprocess"]
+    lr: Ridge = pipeline.named_steps["model"]
+    coef_std = lr.coef_.ravel()
+    intercept_std = float(lr.intercept_)
+
+    # Split coefficients into OHE and numeric parts (order matches ColumnTransformer)
+    n_ohe = len(ohe_names)
+    beta_ohe = coef_std[:n_ohe]
+    beta_num_std = coef_std[n_ohe:]
+
+    scaler: StandardScaler = pre.named_transformers_["numeric"]
+    means = scaler.mean_
+    scales = scaler.scale_
+    scales_safe = np.where(scales == 0, 1.0, scales)
+
+    # Transform numeric coefficients and intercept back to original feature units
+    beta_num_orig = beta_num_std / scales_safe
+    intercept_orig = intercept_std - float(np.sum(beta_num_std * (means / scales_safe)))
+
+    names_all = list(ohe_names) + list(num_names)
+    coefs_orig = list(beta_ohe) + list(beta_num_orig)
+
+    coef_map_orig = {name: float(val) for name, val in zip(names_all, coefs_orig)}
+    coef_map_std = {
+        name: float(val)
+        for name, val in zip(names_all, list(beta_ohe) + list(beta_num_std))
+    }
+
+    return intercept_orig, coef_map_orig, coef_map_std
+
+
+def print_linear_equation(intercept_orig: float, coef_map_orig: dict):
+    parts = [f"{intercept_orig:.4f}"]
+    for name, val in coef_map_orig.items():
+        sign = "+" if val >= 0 else "-"
+        parts.append(f" {sign} {abs(val):.4f}*{name}")
+    eq = "quantity = " + "".join(parts)
+    print("Linear equation (original units):")
+    print(eq)
 
 
 def parse_args():
@@ -128,7 +179,6 @@ def main():
     numeric_features = [
         "price",
         "competitor_price",
-        "price_gap",
         "promotion_flag",
         "marketing_spend",
         "economic_index",
@@ -170,6 +220,29 @@ def main():
             f,
             indent=2,
         )
+
+    # Print and save coefficients analysis
+    pre = pipeline.named_steps["preprocess"]
+    names_all, ohe_names, num_names = extract_feature_names(
+        pre, categorical_features, numeric_features
+    )
+    intercept_orig, coef_map_orig, coef_map_std = coefficients_in_original_units(
+        pipeline, ohe_names, num_names
+    )
+    print_linear_equation(intercept_orig, coef_map_orig)
+
+    coef_report_path = report_out.with_name("linear_coefficients.json")
+    with open(coef_report_path, "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "intercept_original_units": intercept_orig,
+                "coefficients_original_units": coef_map_orig,
+                "coefficients_standardized": coef_map_std,
+            },
+            f,
+            indent=2,
+        )
+    print(f"Saved coefficients to {coef_report_path}")
 
     print("Evaluation metrics (test):")
     print(json.dumps(metrics, indent=2))

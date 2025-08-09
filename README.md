@@ -31,3 +31,27 @@ python src/postprocess_add_elasticity.py --in data/sales.csv --out data/sales_wi
 ```
 
 This estimates a log-log slope of quantity vs. price within each segment (default: by `product_type` and `customer_type`) and adds it as `price_elasticity`. Values are clipped to [-5, 1] to avoid unstable extremes.
+
+5. Optional: Profit-maximizing price recommendation using the trained model:
+
+```
+python src/optimize_price.py \
+  --model models/linear_regression.joblib \
+  --product-type "Reagent" \
+  --customer-type "Pharmaceutical Company" \
+  --competitor-price 85 \
+  --unit-cost 40 \
+  --promotion-flag 0 \
+  --marketing-spend 80000 \
+  --economic-index 0.0 \
+  --month 6 \
+  --day-of-week 3 \
+  --trend-index 0.6 \
+  --base-price 75 \
+  --min-price 20 \
+  --max-price 200 \
+  --num-points 200 \
+  --out reports/price_optimization_example.json
+```
+
+This runs a grid search over price and returns the price that maximizes `(price - unit_cost) * predicted_quantity` under the specified scenario.
