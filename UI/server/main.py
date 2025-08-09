@@ -11,6 +11,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
+import train_linear
+
 
 # Configuration
 PORT = int(os.getenv("PORT", "8000"))
@@ -87,13 +91,42 @@ def retrain_model():
     return RetrainResponse(job_id=job_id, message="Retraining started. This may take several minutes.")
 
 
-@app.get("/api/pricing/recommendations")
+@app.post("/api/pricing/recommendations")
 def recommendations():
     # Placeholder; replace with your model's outputs
     return [
         {"sku": "AB-HEPES-1KG", "currentPrice": 185, "recommendedPrice": 199, "liftPct": 7.6},
         {"sku": "TF-PIPET-200", "currentPrice": 29, "recommendedPrice": 27, "liftPct": -6.9},
     ]
+
+import pandas as pd
+from sklearn.pipeline import Pipeline
+import joblib
+from pricing_input import PricingInput #, TestBody
+@app.post("/api/testlm")
+def testlm(payload: PricingInput):
+    # === CONFIG ===
+    model_path = "linear_regression.joblib"        # same as args.model_out
+    # input_data_path = "path/to/single_input.json" # or hardcoded inline
+    # output_path = "path/to/output_prediction.json"  # optional output
+
+    directory = Path.cwd()
+    
+    try: 
+        # === 1. Load the saved model ===
+        pipeline = joblib.load(directory / 'models' /  model_path)
+
+        # Convert to DataFrame
+        input_df = pd.DataFrame([payload.dict()])
+        # === 3. Predict ===
+        predicted_quantity = pipeline.predict(input_df)[0]
+
+        # === 4. Output result ===
+        print(f"Predicted quantity: {predicted_quantity:.2f}")
+
+        return {"recommendedQuantity": predicted_quantity},
+    except:
+        print("boo")
 
 
 if __name__ == "__main__":
