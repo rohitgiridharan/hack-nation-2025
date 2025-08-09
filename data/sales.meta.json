@@ -1,0 +1,18 @@
+{
+  "n_rows": 50000,
+  "start_date": "2023-01-01",
+  "end_date": "2024-06-30",
+  "seed": 42,
+  "product_types": [
+    "Diagnostic Kit",
+    "Reagent",
+    "Instrument",
+    "Consumable",
+    "Assay Panel"
+  ],
+  "customer_types": [
+    "Pharmaceutical Company",
+    "Academia",
+    "Biotech Startup"
+  ]
+}

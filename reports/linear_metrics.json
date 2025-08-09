@@ -1,0 +1,27 @@
+{
+  "num_train": 40000,
+  "num_test": 10000,
+  "metrics": {
+    "rmse": 4.756147084369622,
+    "mae": 3.8256890625,
+    "r2": 0.8754746230601845
+  },
+  "features": {
+    "categorical": [
+      "product_type",
+      "customer_type",
+      "day_of_week",
+      "month"
+    ],
+    "numeric": [
+      "price",
+      "competitor_price",
+      "price_gap",
+      "promotion_flag",
+      "marketing_spend",
+      "economic_index",
+      "seasonality_index",
+      "trend_index"
+    ]
+  }
+}
